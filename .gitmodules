@@ -1,0 +1,3 @@
+[submodule "Ruby-Slim.tmbundle"]
+	path = Ruby-Slim.tmbundle
+	url = git://github.com/fredwu/ruby-slim-tmbundle.git

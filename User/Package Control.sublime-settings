@@ -1,0 +1,17 @@
+{
+	"auto_upgrade_last_run": 1338169261,
+	"installed_packages":
+	[
+		"Alignment",
+		"CoffeeScript",
+		"Emacs-like Modelines",
+		"Gist",
+		"GoSublime",
+		"jQuery",
+		"JsFormat",
+		"Miscellaneous Emacs Commands",
+		"Package Control",
+		"RSpec",
+		"Simple Rails Navigator"
+	]
+}
