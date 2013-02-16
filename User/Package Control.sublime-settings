@@ -1,17 +1,21 @@
 {
-	"auto_upgrade_last_run": 1338169261,
+	"auto_upgrade_last_run": null,
 	"installed_packages":
 	[
 		"Alignment",
 		"CoffeeScript",
 		"Emacs-like Modelines",
 		"Gist",
+		"GitGutter",
 		"GoSublime",
+		"Inc-Dec-Value",
 		"jQuery",
 		"JsFormat",
 		"Miscellaneous Emacs Commands",
 		"Package Control",
 		"RSpec",
-		"Simple Rails Navigator"
+		"Simple Rails Navigator",
+		"Solarized Color Scheme",
+		"TrailingSpaces"
 	]
 }

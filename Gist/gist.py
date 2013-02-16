@@ -1,10 +1,10 @@
+from __future__ import print_function
 import sublime
 import sublime_plugin
 import os
 import sys
 import json
 import base64
-import urllib2
 import subprocess
 import functools
 import webbrowser
@@ -12,11 +12,41 @@ import tempfile
 import traceback
 import contextlib
 import shutil
+import re
+
+try:
+    import urllib2 as urllib
+except ImportError: # Python 3
+    import urllib.request as urllib
 
 DEFAULT_CREATE_PUBLIC_VALUE = 'false'
 DEFAULT_USE_PROXY_VALUE = 'false'
 settings = sublime.load_settings('Gist.sublime-settings')
 GISTS_URL = 'https://api.github.com/gists'
+USER_GISTS_URL = 'https://api.github.com/users/%s/gists'
+ORGS_URL = 'https://api.github.com/user/orgs'
+ORG_MEMBERS_URL = 'https://api.github.com/orgs/%s/members'
+
+#Enterprise support:
+if settings.get('enterprise'):
+    GISTS_URL = settings.get('url')
+    if not GISTS_URL:
+        raise MissingCredentialsException()
+    GISTS_URL += '/api/v3/gists'
+
+#Per page support (max 100)
+if settings.get('max_gists'):
+    if settings.get('use_starred'):
+        GISTS_URL += '/starred'
+        USER_GISTS_URL += '/starred'
+
+    if settings.get('max_gists') <= 100:
+        MAX_GISTS = '?per_page=%d' % settings.get('max_gists')
+        GISTS_URL += MAX_GISTS
+        USER_GISTS_URL += MAX_GISTS
+    else:
+        settings.set( "max_gists",100 )
+        sublime.status_message("Gist: GitHub API does not support a value of higher than 100")
 
 class MissingCredentialsException(Exception):
     pass
@@ -29,12 +59,29 @@ class SimpleHTTPError(Exception):
         self.code = code
         self.response = response
 
+class MissingTokenException(Exception):
+    pass
+
 def get_credentials():
     username = settings.get('username')
     password = settings.get('password')
     if not username or not password:
         raise MissingCredentialsException()
     return (username, password)
+
+def basic_auth_string():
+    auth_string = u'%s:%s' % get_credentials()
+    return auth_string.encode('utf-8')
+
+def get_token():
+    token = settings.get('token')
+    if not token:
+        raise MissingTokenException()
+    return token
+
+def token_auth_string():
+    auth_string = u'%s' % get_token()
+    return auth_string.encode('utf-8')
 
 if sublime.platform() == 'osx':
     # Keychain support
@@ -125,7 +172,7 @@ def catch_errors(fn):
             if not os.path.exists(user_settings_path):
                 default_settings_path = os.path.join(sublime.packages_path(), 'Gist', 'Gist.sublime-settings')
                 shutil.copy(default_settings_path, user_settings_path)
-            sublime.active_window().run_command("open_file", {"file": user_settings_path})
+            sublime.active_window().open_file(user_settings_path)
         except subprocess.CalledProcessError as err:
             sublime.error_message("Gist: Error while contacting GitHub: cURL returned %d" % err.returncode)
         except EnvironmentError as err:
@@ -167,7 +214,7 @@ def update_gist(gist_url, file_changes, new_description=None):
     return result
 
 def gistify_view(view, gist, gist_filename):
-    statusline_string = "Gist: " + gist_title(gist)
+    statusline_string = "Gist: " + gist_title(gist)[0]
 
     if not view.file_name():
         view.set_name(gist_filename)
@@ -190,6 +237,7 @@ def ungistify_view(view):
 def open_gist(gist_url):
     gist = api_request(gist_url)
     files = sorted(gist['files'].keys())
+
     for gist_filename in files:
         view = sublime.active_window().new_file()
 
@@ -199,17 +247,96 @@ def open_gist(gist_url):
         view.insert(edit, 0, gist['files'][gist_filename]['content'])
         view.end_edit(edit)
 
+        if not "language" in gist['files'][gist_filename]: continue
+
+        language = gist['files'][gist_filename]['language']
+
+        if language is None: continue
+
+        if language == 'C':
+            new_syntax = os.path.join('C++',"{0}.tmLanguage".format(language))
+        else:
+            new_syntax = os.path.join(language,"{0}.tmLanguage".format(language))
+
+        new_syntax_path = os.path.join(sublime.packages_path(), new_syntax)
+
+        if os.path.exists(new_syntax_path):
+            view.set_syntax_file(new_syntax_path)
+
+def insert_gist(gist_url):
+    gist = api_request(gist_url)
+    files = sorted(gist['files'].keys())
+    for gist_filename in files:
+        view = sublime.active_window().active_view()
+        edit = view.begin_edit()
+        for region in view.sel():
+
+            view.replace(edit, region, gist['files'][gist_filename]['content'])
+
+        view.end_edit(edit)
+
 def get_gists():
     return api_request(GISTS_URL)
 
+def get_orgs():
+    return api_request(ORGS_URL)
+
+def get_org_members(org):
+    return api_request(ORG_MEMBERS_URL % org)
+
+def get_user_gists(user):
+    return api_request(USER_GISTS_URL % user)
+
 def gist_title(gist):
-    return gist.get('description') or gist.get('id')
+    title = gist.get('description') or gist.get('id')
+
+    if settings.get('show_authors'):
+        return [title, gist.get('user').get('login')]
+    else:
+        return [title]
+
+def gists_filter(all_gists):
+    prefix = settings.get('gist_prefix')
+    if prefix:
+        prefix_len = len(prefix)
+
+    if settings.get('gist_tag'):
+        tag_prog = re.compile('(^|\s)#' + re.escape(settings.get('gist_tag')) + '($|\s)')
+    else:
+        tag_prog = False
+
+    if not prefix and not tag_prog:
+        return [all_gists, [gist_title(gist) for gist in all_gists]]
+
+    gists = []
+    gists_names = []
+    for gist in all_gists:
+        name = gist_title(gist)
+
+        if prefix and name[0][0:prefix_len] == prefix:
+            name[0] = name[0][prefix_len:]
+
+            gists.append(gist)
+            gists_names.append(name)
+
+        elif tag_prog:
+            match = re.search(tag_prog, name[0])
+            if match:
+                name[0] = name[0][0:match.start()] + name[0][match.end():]
+
+                gists.append(gist)
+                gists_names.append(name)
+
+    return [gists, gists_names]
 
 def api_request_native(url, data=None, method=None):
-    request = urllib2.Request(url)
+    request = urllib.Request(url)
     if method:
         request.get_method = lambda: method
-    request.add_header('Authorization', 'Basic ' + base64.urlsafe_b64encode("%s:%s" % get_credentials()))
+    try:
+        request.add_header('Authorization', 'token ' + token_auth_string())
+    except MissingTokenException:
+        request.add_header('Authorization', 'Basic ' + base64.urlsafe_b64encode(basic_auth_string()))
     request.add_header('Accept', 'application/json')
     request.add_header('Content-Type', 'application/json')
 
@@ -217,18 +344,18 @@ def api_request_native(url, data=None, method=None):
         request.add_data(data)
 
     if settings.get('https_proxy'):
-        opener = urllib2.build_opener(urllib2.HTTPHandler(), urllib2.HTTPSHandler(),
-                                      urllib2.ProxyHandler({'https': settings.get('https_proxy')}))
+        opener = urllib.build_opener(urllib.HTTPHandler(), urllib.HTTPSHandler(),
+                                     urllib.ProxyHandler({'https': settings.get('https_proxy')}))
 
-        urllib2.install_opener(opener)
+        urllib.install_opener(opener)
 
     try:
-        with contextlib.closing(urllib2.urlopen(request)) as response:
+        with contextlib.closing(urllib.urlopen(request)) as response:
             if response.code == 204: # No Content
                 return None
             else:
                 return json.loads(response.read())
-    except urllib2.HTTPError as err:
+    except urllib.HTTPError as err:
         with contextlib.closing(err):
             raise SimpleHTTPError(err.code, err.read())
 
@@ -244,9 +371,13 @@ def named_tempfile():
 def api_request_curl(url, data=None, method=None):
     command = ["curl", '-K', '-', url]
 
-    authorization_string = '-u "%s:%s"' % get_credentials()
-
-    config = [authorization_string,
+    try:
+        config = ['--header "Authorization: token ' + token_auth_string() +'"',
+              '--header "Accept: application/json"',
+              '--header "Content-Type: application/json"',
+              "--silent"]
+    except MissingTokenException:
+        config = ['-u ' + basic_auth_string(),
               '--header "Accept: application/json"',
               '--header "Content-Type: application/json"',
               "--silent"]
@@ -279,7 +410,7 @@ def api_request_curl(url, data=None, method=None):
 
                 if responsecode == 204: # No Content
                     return None
-                elif 200 <= responsecode < 300:
+                elif 200 <= responsecode < 300 or responsecode == 100: # Continue
                     return json.loads(response)
                 else:
                     raise SimpleHTTPError(responsecode, response)
@@ -294,7 +425,10 @@ class GistCommand(sublime_plugin.TextCommand):
 
     @catch_errors
     def run(self, edit):
-        get_credentials()
+        try:
+            get_token()
+        except MissingTokenException:
+            get_credentials()
         regions = [region for region in self.view.sel() if not region.empty()]
 
         if len(regions) == 0:
@@ -337,8 +471,8 @@ class GistCommand(sublime_plugin.TextCommand):
 
                 if gistify:
                     gistify_view(self.view, gist, gist['files'].keys()[0])
-                else:
-                    open_gist(gist['url'])
+                # else:
+                    # open_gist(gist['url'])
 
             window.show_input_panel('Gist File Name: (optional):', filename, on_gist_filename, None, None)
 
@@ -430,14 +564,58 @@ class GistPrivateCommand(GistCommand):
     public = False
 
 class GistListCommandBase(object):
+    gists = orgs = users = []
+
     @catch_errors
     def run(self, *args):
-        gists = get_gists()
-        gist_names = [gist_title(gist) for gist in gists]
+        filtered = gists_filter(get_gists())
+        self.gists = filtered[0]
+        gist_names = filtered[1]
+
+        if settings.get('include_users'):
+            self.users = list(settings.get('include_users'))
+            gist_names = ["> " + user for user in self.users] + gist_names
+
+        if settings.get('include_orgs'):
+            if settings.get('include_orgs') == True:
+                self.orgs = [org.get("login") for org in get_orgs()]
+            else:
+                self.orgs = settings.get('include_orgs')
+
+            gist_names = ["> " + org for org in self.orgs] + gist_names
+
+        print(gist_names)
 
         def on_gist_num(num):
-            if num != -1:
-                self.handle_gist(gists[num])
+            offOrgs = len(self.orgs)
+            offUsers = offOrgs + len(self.users)
+
+            if num < 0:
+                pass
+            elif num < offOrgs:
+                self.gists = []
+
+                members = [member.get("login") for member in get_org_members(self.orgs[num])]
+                for member in members:
+                    self.gists += get_user_gists(member)
+
+                filtered = gists_filter(self.gists)
+                self.gists = filtered[0]
+                gist_names = filtered[1]
+                print(gist_names)
+
+                self.orgs = self.users = []
+                self.get_window().show_quick_panel(gist_names, on_gist_num)
+            elif num < offUsers:
+                filtered = gists_filter(get_user_gists(self.users[num - offOrgs]))
+                self.gists = filtered[0]
+                gist_names = filtered[1]
+                print(gist_names)
+
+                self.orgs = self.users = []
+                self.get_window().show_quick_panel(gist_names, on_gist_num)
+            else:
+                self.handle_gist(self.gists[num - offUsers])
 
         self.get_window().show_quick_panel(gist_names, on_gist_num)
 
@@ -445,6 +623,14 @@ class GistListCommand(GistListCommandBase, sublime_plugin.WindowCommand):
     @catch_errors
     def handle_gist(self, gist):
         open_gist(gist['url'])
+
+    def get_window(self):
+        return self.window
+
+class InsertGistListCommand(GistListCommandBase, sublime_plugin.WindowCommand):
+    @catch_errors
+    def handle_gist(self, gist):
+        insert_gist(gist['url'])
 
     def get_window(self):
         return self.window

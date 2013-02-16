@@ -1,11 +1,9 @@
-### This is essentially a mirror of [jdc0589/JsFormat](https://github.com/jdc0589/JsFormat). Please submit issues there. I will keep this repo up to date.
 ## Summary
 JsFormat is a javascipt formatting plugin for Sublime Text 2.
 It uses the commandline/python-module javascript formatter from http://jsbeautifier.org/ to format the selected text, 
 or the entire file if there is no selection. The plugin does not check to make sure the buffer has a ".js" file type, 
 it just javascript formats the selection/file. Thus, use with caution if you are in an html file.
 
-*I am investigating replacing JsFormat with an 'all in one' formatting plugin to support multiple languages: [Format](http://github.com/jdc0589/Format) (very very pre-alpha). JsFormat's complete feature set would be present for js/json files. Please leave me some feedback if you think this is a good/bad idea.*
 
 ## Features
 * javascript/json formatting (obviously)
@@ -24,6 +22,8 @@ In addition, the following settings are available in JsFormat/JsFormat.sublime-s
 * "keep_array_indentation": false
 * "keep_function_indentation": false
 * "indent_with_tabs": false
+* "ensure_newline_at_eof_on_save": false
+* "space_before_line_starters": false
 
 ## Install
 #### [Package Control](https://github.com/wbond/sublime_package_control) (*Recommended*)
@@ -44,6 +44,16 @@ Clone this repository in to the Sublime Text 2 "Packages" directory, which is lo
 ## Key Binding
 
 The default key binding is "ctrl+alt+f"
+
+## Key Binding Conflicts
+
+Unfortunately there are other plugins that use "ctrl + alt + f", this is a hard problem to solve. If JsFormat works
+OK via the command palette but does nothing when you use the "ctrl + alt + f" shortcut, you have two options:
+
+1. Add ```{ "keys": ["ctrl+alt+f"], "command": "js_format"}``` to your user keybindings file. This will override anything specifid by a plugin.
+2. Find the offending plugin, and change the shortcut in its sublime-keymap file (will revert on updates)
+
+[This is the current bug report we are using to discuss this issue](https://github.com/jdc0589/JsFormat/issues/7); in addition I have made a [wiki page here](https://github.com/jdc0589/JsFormat/wiki/Plugins-With-Conflicting-Keybindings) to document offending plugins. If we find all the offending plugins, I will be more than happy to contribute to them to fix the problem.
 
 ## Command Palette
 

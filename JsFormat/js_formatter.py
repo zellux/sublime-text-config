@@ -17,6 +17,7 @@ class JsFormatCommand(sublime_plugin.TextCommand):
 		opts.keep_array_indentation = s.get("keep_array_indentation") or False
 		opts.keep_function_indentation = s.get("keep_function_indentation") or False
 		opts.indent_with_tabs = s.get("indent_with_tabs") or False
+		opts.space_before_line_starters = s.get("space_before_line_starters") or False
 
 		selection = self.view.sel()[0]
 		nwsOffset = self.prev_non_whitespace()
@@ -35,7 +36,7 @@ class JsFormatCommand(sublime_plugin.TextCommand):
 			replaceRegion = sublime.Region(0, self.view.size())
 
 		res = jsbeautifier.beautify(self.view.substr(replaceRegion), opts)
-		if(not formatSelection):
+		if(not formatSelection and settings.get('ensure_newline_at_eof_on_save')):
 			res = res + "\n"
 
 		self.view.replace(edit, replaceRegion, res)
