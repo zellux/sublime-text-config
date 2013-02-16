@@ -1,11 +1,7 @@
 GoSublime
 =========
 
-NOTICE
-------
-
-The project isn't dead, but there is a chance that I will become unresponsive for a little while take a brief hiatus to re-adjust to life.
-
+<a href='http://www.pledgie.com/campaigns/19078'><img alt='Click here to lend your support to: GoSublime and make a donation at www.pledgie.com !' src='http://www.pledgie.com/campaigns/19078.png?skin_name=chrome' border='0' /></a>
 
 Intro
 -----
@@ -17,32 +13,24 @@ Features
 
 * code completion from [Gocode](https://github.com/nsf/gocode)
 * context aware snippets via the code-completion popup to complement the existing SublimeText Go package.
-* sublime build system(ctrl+b) allowing to run any command your shell will accept with some focus on the `go` command including support for cycling errors with F4/Shift+F4
-* gotype support with errors highlighted in the editor view
-* gofmt support for quickly reformatting your source to conform with the Go standards
-* quick panel palette to:
-	* jump errors (and jump back to where you were before (accross files))
-	* list declarations in the current file
-	* automtically add/remove package imports
-
-MarGo
------
-
-Some features such as goto definition(currently only supports the current file) and auto-add/remove package imports are only available from MarGo. Additionally, in the future, most(likely all) features that depend on external commands (gofmt, etc.) will be removed and instead be implemented in MarGo.
-
-An installation of MarGo will be attempted on Sublime Text startup if communication with MarGo fails.
-If this doesn't work, or other errors are reported afterwards, please discuss it here: https://github.com/DisposaBoy/GoSublime/issues/44. You can install MarGo manually with command: `go get github.com/DisposaBoy/MarGo`
-
-Other Dependencies
-------------
-
-If you haven't done so already, install [Gocode](https://github.com/nsf/gocode).
-Gocode provides most of the code completion in GoSublime.
+* sublime build system(ctrl+b) integrating with GoSublime 9o command prompt
+* lint/syntax check as you type
+* quickly jump to any syntax error reported (and jump back to where you were before (across files))
+* quickly fmt your source or automatically on save to conform with the Go standards
+* easily create a new go file and run it without needing to save it first (9o `replay`)
+* share your snippets(anything in the loaded file) on play.golang.org
+* list declarations in the current file
+* automtically add/remove package imports
+* quickly jump your import section(automatically goes to the last import) where you can easily edit the pkg alias and return to where you were before
+* go to definition of a package function or constant, etc.
+* show the source(and thus documentation) of a variable without needing to change views
 
 Demo
 ----
 
-* http://vimeo.com/disposaboy/gosublime-demo2
+* New demos will be uploaded to http://www.youtube.com/user/GoSublime/videos
+
+* Old demo http://vimeo.com/disposaboy/gosublime-demo2
 
 ![](https://github.com/DisposaBoy/GoSublime/raw/master/ss/2.png)
 ![](https://github.com/DisposaBoy/GoSublime/raw/master/ss/1.png)
@@ -50,30 +38,19 @@ Demo
 Installation
 ------------
 
-Recommended method
-------------------
-
 Sublime Package Control allows you to easily install or remove GoSublime(and many other ST2 packages) from within the editor. It offers automatically updating packages as well so you no longer need to keep track of changes in GoSublime.
 
 1. Install Sublime Package Control (if you haven't done so already) from http://wbond.net/sublime_packages/package_control . Be sure to restart ST2 to complete the installation.
 
 2. Bring up the command palette (default `ctrl+shift+p` or `cmd+shift+p`) and start typing `Package Control: Install Package` then press return or click on that option to activate it. You will be presented with a new Quick Panel with the list of available packages. Type `GoSublime` and press return or on its entry to install GoSublime. If there is no entry for GoSublime, you most likely already have it installed.
 
-Alternative method
-------------------
-
-* Download GoSublime into your packages directory. You can access your package directory from within SublimeText by going to the menu `Preferences > Browse Packages...`. You can download a zipped archive or tarball on github via the `Downloads` button.
-
-* Alternatively, you can simply clone this repo into your packages directory . (on Linux)
-
-    $ cd ~/.config/sublime-text-2/Packages
-
-    $ git clone git://github.com/DisposaBoy/GoSublime
-
 Usage
 -----
 
-Please see USAGE.md for general usage and other tips for effective usage of GoSublime
+Please see [USAGE.md](USAGE.md) and [9o.md](9o.md) for general usage and other tips for effective usage of GoSublime
+
+**NOTE** GoCode is entirely integrated into GoSublime/MarGo. If you see any bugs related to completion,
+assume they are GoSublime's bugs and I will forward bug reports as necessary.
 
 Settings
 --------
@@ -99,4 +76,18 @@ The following letters are used as suffix for entries in the completion list.
 
 * ρ - Packages
 
+
+Copyright, License & Contributors
+=================================
+
+GoSublime and MarGo are released under the MIT license. See [LICENSE.md](LICENSE.md)
+
+GoSublime is the copyrighted work of *The GoSublime Authors* i.e me ([https://github.com/DisposaBoy/GoSublime](DisposaBoy)) and *all* contributors. If you submit a change, be it documentation or code, so long as it's committed to GoSublime's history I consider you a contributor. See [AUTHORS.md](AUTHORS.md) for a list of all the GoSublime authors/contributors.
+
+GoSublime bundles several dependencies, these all reside under the diriectory tree [something_borrowed/](something_borrowed/) and are the copyright of their respective authors.
+
+Supporters
+==========
+
+GoSublime has received support from many kind individuals and as a thank you I've added most to [THANKS.md](THANKS.md) file as a way of saying *Thank You*. Some donors donated anonymously and so are not listed, however, if you donated and either I have not yet sent you an email personally thanking you or you would otherwise like to be added, please don't hesitate to contact me disposaboy@dby.me
 
